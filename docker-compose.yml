@@ -1,0 +1,44 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: hermes-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - hermes-net
+
+  hermes-api:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes-workflow-backend
+    restart: unless-stopped
+    init: true   # <--- ADICIONADO AQUI para corrigir o problema de PID 1 e fechamento abrupto
+    ports:
+      - "0.0.0.0:8642:8642"
+    environment:
+      - API_SERVER_KEY=${API_SERVER_KEY}
+      - API_SERVER_HOST=0.0.0.0
+      - HERMES_WRITE_SAFE_ROOT=/opt/data:/workspace
+      - HERMES_SANDBOX_MODE=docker
+      - QDRANT_URL=http://qdrant:6333
+    volumes:
+      - hermes_data:/root/.hermes
+      - ./workspace:/workspace
+      - ./entrypoint.sh:/entrypoint.sh
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    depends_on:
+      - qdrant
+    networks:
+      - hermes-net
+
+volumes:
+  hermes_data:
+  qdrant_storage:
+
+networks:
+  hermes-net:
+    driver: bridge
